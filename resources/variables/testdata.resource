@@ -4,8 +4,10 @@
 ${NAME}               Robot
 ${LAST_NAME}          Framework
 ${DOCUMENT}           060247028
+${NIT_DOCUMENT}       012345678901
 ${PHONE}              75391216
 ${DUI}                DUI
+${NIT}                NIT
 ${PASSPORT}           Pasaporte
 ${RESIDENT_CARD}      Carné de Residente
 

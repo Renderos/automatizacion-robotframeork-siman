@@ -67,8 +67,12 @@ Fill User Form GT
         Click Element By Type    ${INPUT_NAME}    other
         Fill Element By Text    ${INPUT_NAME}    ${NAME}
         Fill Element By Text    ${INPUT_LAST_NAME}    ${LAST_NAME}
-        Select List Item    ${SELECT_DOCUMENT}    ${DUI}
-        Fill Element By Text    ${INPUT_DOCUMENT}    ${DOCUMENT}
+        Select List Item    ${SELECT_DOCUMENT}    ${NIT}
+        Fill Element By Text    ${INPUT_DOCUMENT}    ${NIT_DOCUMENT}
+        Select List Item    ${SELECT_DEPARMENT_GT}    Guatemala
+        Select List Item   ${SELECT_CITY_GT}    Guatemala Zona 1
+        Fill Element By Text    ${INPUT_ADDRESS_GT}    Test Street 123
+        Fill Element By Text    ${INPUT_ZONE_GT}    1
         Fill Element By Text    ${INPUT_PHONE}    ${PHONE}
         IF    ${user_type}== 'new_user'    
             Click Element By Type    ${CHECK_SAVE_DATA}    checkbox          

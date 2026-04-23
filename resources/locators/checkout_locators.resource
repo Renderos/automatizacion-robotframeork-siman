@@ -12,14 +12,20 @@ ${SELECT_DOCUMENT}            id=input-documentType
 ${INPUT_DOCUMENT}             id=input-document
 ${INPUT_PHONE}                id=input-homePhone
 
+# GT locators
+${SELECT_DEPARMENT_GT}        id=input-department
+${SELECT_CITY_GT}             id=input-town
+${INPUT_ADDRESS_GT}           id=input-address
+${INPUT_ZONE_GT}              id=input-zone
+
 ${CHECK_SAVE_DATA}            id=opt-in-save-data
 ${CHECK_PRIVACY_TERMS}        id=privacy-terms
 
 ${BTN_GO_SHIPPING}            id=go-to-shipping
 ${BTN_SEND_EMAIL_CODE}        id=loginWithAccessKeyBtn
 ${BTN_CONFIRM_EMAIL_CODE}     id=sendAccessKeyBtn
-${INPUT_EMAIL_CODE}          id=access-code
-${BTN_CONFIRM_LOGIN}     id=confirmLoginAccessKeyBtn
+${INPUT_EMAIL_CODE}           id=access-code
+${BTN_CONFIRM_LOGIN}          id=confirmLoginAccessKeyBtn
 
 # Step 2 shipping
 
