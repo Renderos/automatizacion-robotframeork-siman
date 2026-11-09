@@ -2,5 +2,6 @@
   "python.analysis.extraPaths": ["./scripts"],
   "robotframework.lint.robocop.enabled": true,
   "robotframework.lint.robocop.path": "robocop",
-  "robotcode.robocop.enabled": false
+  "robotcode.robocop.enabled": false,
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }

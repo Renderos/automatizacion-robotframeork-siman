@@ -106,6 +106,25 @@ Fill Element By Text
         ...    No se pudo llenar el campo '${element_identifier}' con el texto '${text_element}'. Error: ${error_message}
     END
 
+Type Into Masked Input
+    [Documentation]    Escribe en campos con máscara, que se recargan al cambiar el tipo de documento y pierden
+    ...    texto con Clear Element Text. Reintenta hasta que el valor, sin separadores de máscara, coincida.
+    [Arguments]    ${locator}    ${text}
+    Wait Until Element Is Visible    ${locator}    30s
+    Wait Until Keyword Succeeds    20s    2s    Type And Verify Masked Value    ${locator}    ${text}
+
+Type And Verify Masked Value
+    [Documentation]    Borra con teclado, escribe desde el inicio del campo y verifica el valor
+    [Arguments]    ${locator}    ${text}
+    Click Element    ${locator}
+    Press Keys    None    CTRL+a
+    Press Keys    None    DELETE
+    Press Keys    ${locator}    HOME    ${text}
+    Sleep    500ms
+    ${value}=    Get Value    ${locator}
+    ${typed}=    Evaluate    re.sub('[^0-9A-Za-z]', '', $value)    modules=re
+    Should Be Equal    ${typed}    ${text}    msg=El campo con máscara quedó con '${value}'
+
 Select List Item
     [Documentation]    Selecciona un item de lista con validaciones robustas
     ...    - Validación de parámetros
@@ -125,27 +144,10 @@ Select List Item
     END
 
     TRY
-        # Espera robusta para que la lista esté lista
-        Wait Until Keyword Succeeds    3x    2s
-        ...    Page Should Contain Element    ${locator}
-
-        Wait Until Keyword Succeeds    3x    2s
-        ...    Element Should Be Visible    ${locator}
-
-        Wait Until Keyword Succeeds    3x    1s
-        ...    Element Should Be Enabled    ${locator}
-
-        # Verificar que la lista tiene opciones
-        Wait Until Keyword Succeeds    2x    2s
-        ...    List Selection Should Be Possible    ${locator}
-
-        # Seleccionar por label con manejo de error específico
-        Wait Until Keyword Succeeds    2x    1s
-        ...    Select From List By Label    ${locator}    ${label}
-
-        # Verificación robusta de la selección
-        Wait Until Keyword Succeeds    3x    1s
-        ...    Verify List Selection    ${locator}    ${label}
+        # El checkout re-renderiza el formulario y puede reemplazar el <select> en cualquier paso,
+        # por eso se reintenta la secuencia completa y no cada paso por separado.
+        Wait Until Keyword Succeeds    30s    2s
+        ...    Select And Verify List Item    ${locator}    ${label}
     EXCEPT    AS    ${error_message}
         # Capturar screenshot y información de debug
         Capture Page Screenshot    error_select_list_{$locator}.png
@@ -169,6 +171,16 @@ Select List Item
         # Re-lanzar error con mensaje mejorado
         Fail    No se pudo seleccionar '${label}' en la lista '${locator}'. Error: ${error_message}
     END
+
+Select And Verify List Item
+    [Documentation]    Espera la lista, selecciona el label y verifica que quedó seleccionado
+    [Arguments]    ${locator}    ${label}
+
+    Element Should Be Visible    ${locator}
+    Element Should Be Enabled    ${locator}
+    List Selection Should Be Possible    ${locator}
+    Select From List By Label    ${locator}    ${label}
+    Verify List Selection    ${locator}    ${label}
 
 Verify List Selection
     [Documentation]    Keyword auxiliar para verificar la selección
@@ -203,7 +215,7 @@ Login Mailsac
         Log To Console    Esperando 10s para recibir el correo en usuario recurrente...
         Sleep    10s
     ELSE
-        Log To Console    Esperando 25s para recibir el correo en usuario nuevo...
+        Log To Console    Esperando 10s para recibir el correo en usuario nuevo...
         Sleep    10s
     END
     ${otp}=    Obtener Codigo OTP Mailsac    ${email_address}

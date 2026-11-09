@@ -7,11 +7,19 @@ Resource    ../../resources/locators/checkout_locators.resource
 Resource    ../../resources/variables/testdata.resource
 
 
+*** Variables ***
+# Cuentas donde una compra sería real: siman.myvtex.com (con o sin workspace) y cualquier *.siman.com
+${PRODUCTION_URL_REGEX}    ^https?://(([\\w-]+--)?siman\\.myvtex\\.com|([\\w-]+\\.)?siman\\.com)(/|:|$)
+${ALLOW_REAL_ORDERS}       ${False}
+
+
 *** Keywords ***
 Login Checkout
     [Documentation]    Metodo general para logearse en checkout ya sea como usuario recurrente o no
     [Arguments]    ${country}    ${user_type}
-    
+
+    ${country}=    Convert To Upper Case    ${country}
+
     Click Element By Type   ${BTN_GO_PAYMENT}    button
 
     # Espera específica para el campo de email
@@ -29,124 +37,120 @@ Login Checkout
         Fill Element By Text    ${INPUT_EMAIL}    ${EMAIL_RECURRENT}
         Click Element By Type    ${INPUT_NAME}    other
         Send OTP Email    ${user_type}    ${EMAIL_RECURRENT}
+    ELSE
+        Fail    Tipo de usuario no soportado: '${user_type}'. Usa guest_user, new_user o recurrent_user.
     END
 
 Fill User Form
-    [Documentation]    Llena el formulario de usuario por país
+    [Documentation]    Llena el formulario de identificación con el tipo y número de documento del país
     [Arguments]    ${country}    ${user_type}    ${mail}
-    IF    '${country}' == 'SV'
-        Fill User Form SV    ${user_type}    ${mail}
-    ELSE IF    '${country}' == 'GT'
-        Fill User Form GT    ${user_type}    ${mail}
-    ELSE IF    '${country}' == 'CR'
-        Fill User Form CR    ${user_type}    ${mail}
-    ELSE IF    '${country}' == 'NI'
-        Fill User Form NI    ${user_type}    ${mail}
+    ${country}=    Convert To Upper Case    ${country}
+    IF    $country not in $DOCUMENT_TYPE_BY_COUNTRY
+        Fail    País no soportado en Fill User Form: '${country}'. Usa SV, GT, CR o NI.
     END
-
-Fill User Form SV
-    [Documentation]   Llena el formulario de nuevo usuario en checkout
-    [Arguments]    ${user_type}    ${mail}
-        Fill Element By Text    ${INPUT_EMAIL}    ${mail}
-        Click Element By Type    ${INPUT_NAME}    other
-        Fill Element By Text    ${INPUT_NAME}    ${NAME}
-        Fill Element By Text    ${INPUT_LAST_NAME}    ${LAST_NAME}
-        Select List Item    ${SELECT_DOCUMENT}    ${DUI}
-        Fill Element By Text    ${INPUT_DOCUMENT}    ${DOCUMENT}
-        Fill Element By Text    ${INPUT_PHONE}    ${PHONE}
-        IF    $user_type == 'new_user'    
-            Click Element By Type    ${CHECK_SAVE_DATA}    checkbox          
-        END
-        Click Element By Type    ${CHECK_PRIVACY_TERMS}    checkbox
-        Click Element By Type    ${BTN_GO_SHIPPING}    button    
-
-Fill User Form GT
-    [Documentation]   Llena el formulario de nuevo usuario en checkout
-    [Arguments]    ${user_type}    ${mail}
-        Fill Element By Text    ${INPUT_EMAIL}    ${mail}
-        Click Element By Type    ${INPUT_NAME}    other
-        Fill Element By Text    ${INPUT_NAME}    ${NAME}
-        Fill Element By Text    ${INPUT_LAST_NAME}    ${LAST_NAME}
-        Select List Item    ${SELECT_DOCUMENT}    ${DUI}
-        Fill Element By Text    ${INPUT_DOCUMENT}    ${DOCUMENT}
-        Fill Element By Text    ${INPUT_PHONE}    ${PHONE}
-        IF    $user_type == 'new_user'    
-            Click Element By Type    ${CHECK_SAVE_DATA}    checkbox          
-        END
-        Click Element By Type    ${CHECK_PRIVACY_TERMS}    checkbox
-        Click Element By Type    ${BTN_GO_SHIPPING}    button     
-
-Fill User Form CR
-    [Documentation]   Llena el formulario de nuevo usuario en checkout
-    [Arguments]    ${user_type}    ${mail}
-        Fill Element By Text    ${INPUT_EMAIL}    ${mail}
-        Click Element By Type    ${INPUT_NAME}    other
-        Fill Element By Text    ${INPUT_NAME}    ${NAME}
-        Fill Element By Text    ${INPUT_LAST_NAME}    ${LAST_NAME}
-        Select List Item    ${SELECT_DOCUMENT}    ${DUI}
-        Fill Element By Text    ${INPUT_DOCUMENT}    ${DOCUMENT}
-        Fill Element By Text    ${INPUT_PHONE}    ${PHONE}
-        IF    $user_type == 'new_user'    
-            Click Element By Type    ${CHECK_SAVE_DATA}    checkbox          
-        END
-        Click Element By Type    ${CHECK_PRIVACY_TERMS}    checkbox
-        Click Element By Type    ${BTN_GO_SHIPPING}    button 
-
-Fill User Form NI
-    [Documentation]   Llena el formulario de nuevo usuario en checkout
-    [Arguments]    ${user_type}    ${mail}
-        Fill Element By Text    ${INPUT_EMAIL}    ${mail}
-        Click Element By Type    ${INPUT_NAME}    other
-        Fill Element By Text    ${INPUT_NAME}    ${NAME}
-        Fill Element By Text    ${INPUT_LAST_NAME}    ${LAST_NAME}
-        Select List Item    ${SELECT_DOCUMENT}    ${DUI}
-        Fill Element By Text    ${INPUT_DOCUMENT}    ${DOCUMENT}
-        Fill Element By Text    ${INPUT_PHONE}    ${PHONE}
-        IF    $user_type == 'new_user'    
-            Click Element By Type    ${CHECK_SAVE_DATA}    checkbox          
-        END
-        Click Element By Type    ${CHECK_PRIVACY_TERMS}    checkbox
-        Click Element By Type    ${BTN_GO_SHIPPING}    button                              
+    Fill Element By Text    ${INPUT_EMAIL}    ${mail}
+    Click Element By Type    ${INPUT_NAME}    other
+    Fill Element By Text    ${INPUT_NAME}    ${NAME}
+    Fill Element By Text    ${INPUT_LAST_NAME}    ${LAST_NAME}
+    Select List Item    ${SELECT_DOCUMENT}    ${DOCUMENT_TYPE_BY_COUNTRY}[${country}]
+    Type Into Masked Input    ${INPUT_DOCUMENT}    ${DOCUMENT_BY_COUNTRY}[${country}]
+    Fill Element By Text    ${INPUT_PHONE}    ${PHONE}
+    # La casilla viene marcada: si queda así, el checkout exige iniciar sesión y un invitado no puede avanzar
+    IF    $user_type == 'new_user'
+        Click Element By Type    ${CHECK_SAVE_DATA}    checkbox
+    ELSE
+        Unselect Checkbox    ${CHECK_SAVE_DATA}
+    END
+    Click Element By Type    ${CHECK_PRIVACY_TERMS}    checkbox
+    Click Element By Type    ${BTN_GO_SHIPPING}    button
 
 Send OTP Email
     [Documentation]    Envía el código OTP al correo del usuario para login en checkout
     [Arguments]    ${user_type}    ${email}
-        Wait Until Element Is Visible   ${BTN_SEND_EMAIL_CODE}    10s
-        Click Element By Type   ${BTN_SEND_EMAIL_CODE}    button
-        Wait Until Element Is Visible  ${BTN_CONFIRM_EMAIL_CODE}    10s
-        Click Element By Type   ${BTN_CONFIRM_EMAIL_CODE}    button
+        Request OTP Email    ${user_type}    ${email}
         ${OTP}=    Login Mailsac   ${email}    ${user_type}
         Fill Element By Text    ${INPUT_EMAIL_CODE}    ${OTP}
         Click Element By Type   ${BTN_CONFIRM_LOGIN}    button
+
+Request OTP Email
+    [Documentation]    Solicita el envío del OTP. En el correo recurrente vacía antes la bandeja para no leer un código viejo.
+    [Arguments]    ${user_type}    ${email}
+        Wait Until Element Is Visible   ${BTN_SEND_EMAIL_CODE}    10s
+        Click Element By Type   ${BTN_SEND_EMAIL_CODE}    button
+        Wait Until Element Is Visible  ${BTN_CONFIRM_EMAIL_CODE}    10s
+        IF    '${user_type}' == 'recurrent_user'
+            Vaciar bandeja correo recurrente    ${email}
+        END
+        Click Element By Type   ${BTN_CONFIRM_EMAIL_CODE}    button
+
+Wait For Shipping Address Fields
+    [Documentation]    Espera el formulario de Envío. Se usa la calle porque existe en todas las cuentas,
+    ...    mientras que los #ship-* de ubicación están ocultos en SV.
+    Wait Until Element Is Visible    ${INPUT_STREET}    30s
+
+Select Address Level
+    [Documentation]    Selecciona un nivel de ubicación (0=departamento, 1=municipio, 2=distrito), con reintentos
+    ...    porque el formulario se recarga al cambiar cada nivel.
+    [Arguments]    ${level}    ${native_locator}    ${value}
+    Wait Until Keyword Succeeds    30s    2s
+    ...    Select Address Level Now    ${level}    ${native_locator}    ${value}
+
+Select Address Level Now
+    [Documentation]    Usa el <select> con id si está visible (QA) y, si no, el selector regional sin id (SV)
+    [Arguments]    ${level}    ${native_locator}    ${value}
+    ${native_visible}=    Run Keyword And Return Status    Element Should Be Visible    ${native_locator}
+    IF    ${native_visible}
+        Select And Verify List Item    ${native_locator}    ${value}
+    ELSE
+        @{selects}=    Get WebElements    ${SELECT_REGIONAL}
+        ${visible}=    Evaluate    [e for e in $selects if e.is_displayed()]
+        ${select}=    Evaluate    $visible[int($level)]
+        Select From List By Label    ${select}    ${value}
+        ${selected}=    Get Selected List Label    ${select}
+        Should Be Equal    ${selected}    ${value}
+    END
 
 Create New Adress In Checkout
     [Documentation]    Metodo para crear una nueva direccion en el checkout
     [Arguments]    ${user_type}    ${DEPARTMENT}    ${CITY}    ${NEIGHBORHOOD}
 
-    # Espera específica para el campo de email
-    Wait Until Element Is Visible    ${SELECT_DEPARMENT}    30s
-    Wait Until Element Is Enabled    ${SELECT_DEPARMENT}    30s
-
-    IF    '${user_type}' == 'new_user'
-        Select List Item    ${SELECT_DEPARMENT}    ${DEPARTMENT}
-        Select List Item    ${SELECT_CITY}    ${CITY}
-        Select List Item    ${SELECT_NEIGHBORHOOD}    ${NEIGHBORHOOD}
-        Fill Element By Text    ${INPUT_STREET}    Test Street
-        Fill Element By Text    ${INPUT_COMPLEMENT}    Apto 123
-        Fill Element By Text    ${INPUT_RECEIVER_NAME}    User Test
-        Wait Until Element Is Visible    ${BTN_GO_TO_STEP3_PAYMENT}    30s
-        Click Element By Type    ${BTN_GO_TO_STEP3_PAYMENT}    button
-    ELSE IF    '${user_type}' == 'recurrent_user'
+    IF    '${user_type}' == 'recurrent_user'
         Click Element By Type    ${BTN_NEW_ADDRESS_OPTION}    button
-        Select List Item    ${SELECT_DEPARMENT}    ${DEPARTMENT}
-        Select List Item    ${SELECT_CITY}    ${CITY}
-        Select List Item    ${SELECT_NEIGHBORHOOD}    ${NEIGHBORHOOD}
-        Fill Element By Text    ${INPUT_STREET}    Test Street
-        Fill Element By Text    ${INPUT_COMPLEMENT}    Apto 123
-        Fill Element By Text    ${INPUT_RECEIVER_NAME}    User Test
-        Wait Until Element Is Visible    ${BTN_GO_TO_STEP3_PAYMENT}    30s
-        Click Element By Type    ${BTN_GO_TO_STEP3_PAYMENT}    button
+    ELSE IF    '${user_type}' != 'guest_user' and '${user_type}' != 'new_user'
+        Fail    Tipo de usuario no soportado: '${user_type}'. Usa guest_user, new_user o recurrent_user.
     END
+
+    Wait For Shipping Address Fields
+    Select Address Level    0    ${SELECT_DEPARMENT}    ${DEPARTMENT}
+    Select Address Level    1    ${SELECT_CITY}    ${CITY}
+    Select Address Level    2    ${SELECT_NEIGHBORHOOD}    ${NEIGHBORHOOD}
+    # Al terminar el login, el checkout puede recargar el formulario y borrar los campos de texto
+    Wait Until Keyword Succeeds    60s    2s    Fill Address And Go To Payment
+
+Fill Address And Go To Payment
+    [Documentation]    Llena los campos de texto, los verifica y continúa hasta confirmar que se llegó a Pago
+    Retype Text Field    ${INPUT_STREET}    Test Street
+    # GT y NI no muestran este campo
+    ${has_complement}=    Run Keyword And Return Status    Element Should Be Visible    ${INPUT_COMPLEMENT}
+    IF    ${has_complement}
+        Retype Text Field    ${INPUT_COMPLEMENT}    Apto 123
+    END
+    Retype Text Field    ${INPUT_RECEIVER_NAME}    User Test
+    Sleep    1s
+    Textfield Value Should Be    ${INPUT_STREET}    Test Street
+    Textfield Value Should Be    ${INPUT_RECEIVER_NAME}    User Test
+    Wait Until Element Is Visible    ${BTN_GO_TO_STEP3_PAYMENT}    30s
+    Click Element By Type    ${BTN_GO_TO_STEP3_PAYMENT}    button
+    Wait Until Location Contains    /payment    15s
+
+Retype Text Field
+    [Documentation]    Borra con teclado y escribe: en estos campos Clear Element Text no siempre limpia el valor
+    [Arguments]    ${locator}    ${text}
+    Wait Until Element Is Visible    ${locator}    30s
+    Click Element    ${locator}
+    Press Keys    None    CTRL+a
+    Press Keys    None    DELETE
+    Input Text    ${locator}    ${text}    clear=False
 
 Select Pickup Point
     [Documentation]    Selecciona un punto de recogida por nombre de tienda
@@ -174,8 +178,7 @@ Select Split Delivery
 
     IF    '${user_type}' == 'guest_user' or '${user_type}' == 'new_user'
         # Espera para el campo de departamento
-        Wait Until Element Is Visible    ${SELECT_DEPARMENT}    30s
-        Wait Until Element Is Enabled    ${SELECT_DEPARMENT}    10s 
+        Wait For Shipping Address Fields
         Select Split Method    ${DEPARTMENT}    ${CITY}    ${NEIGHBORHOOD}    ${PICKUP_NAME}
         
     ELSE IF   '${user_type}' == 'recurrent_user'
@@ -232,15 +235,9 @@ Select Split Method
             Click Element By Type    ${BTN_GO_TO_FILL_ADDRESS}    button
         
             # Llenar información de dirección
-            Wait Until Keyword Succeeds    10s    2s
-            ...    Select List Item    ${SELECT_DEPARMENT}    ${DEPARTMENT}
-            
-            Wait Until Keyword Succeeds    10s    2s
-            ...    Select List Item    ${SELECT_CITY}    ${CITY}
-            
-            Wait Until Keyword Succeeds    10s    2s
-            ...    Select List Item    ${SELECT_NEIGHBORHOOD}    ${NEIGHBORHOOD}
-            
+            Select Address Level    0    ${SELECT_DEPARMENT}    ${DEPARTMENT}
+                        Select Address Level    1    ${SELECT_CITY}    ${CITY}
+                        Select Address Level    2    ${SELECT_NEIGHBORHOOD}    ${NEIGHBORHOOD}
             Fill Element By Text    ${INPUT_STREET}    Test Street
             Fill Element By Text    ${INPUT_COMPLEMENT}    Apto 123
             Fill Element By Text    ${INPUT_RECEIVER_NAME}    User Test
@@ -259,6 +256,9 @@ Select Split Method
 Select Payment Method
     [Documentation]    Selección de método de pago en checkout
     [Arguments]    ${payment_method}
+
+    # En producción no se elige método: algunos piden datos de tarjeta y la compra no se va a finalizar
+    Skip Purchase On Production Account
 
     IF    '${payment_method}' == 'credisiman'
         # Lógica para seleccionar tarjeta de crédito
@@ -293,10 +293,22 @@ Select Payment Method
     END
 
 Click Payment Submit Button
-    [Documentation]    Click en el boton de finalizar compra en el checkout
+    [Documentation]    Click en el boton de finalizar compra en el checkout.
+    ...    En una cuenta de producción no hace click: la prueba termina en SKIP para no crear un pedido real,
+    ...    salvo que se ejecute explícitamente con --variable ALLOW_REAL_ORDERS:True.
+    Skip Purchase On Production Account
     Wait Until Element Is Visible    ${BTN_CONFIRM_PURCHASE}    30s
     Wait Until Element Is Enabled    ${BTN_CONFIRM_PURCHASE}    10s
     Click Element By Type    ${BTN_CONFIRM_PURCHASE}    button
+
+Skip Purchase On Production Account
+    [Documentation]    En una cuenta de producción confirma que se llegó al botón de compra y termina la prueba en SKIP
+    ${current_url}=    Get Location
+    ${is_production}=    Evaluate    bool(re.match($PRODUCTION_URL_REGEX, $current_url))    modules=re
+    IF    ${is_production} and not ${ALLOW_REAL_ORDERS}
+        Wait Until Element Is Visible    ${BTN_CONFIRM_PURCHASE}    30s
+        Skip    Se llegó al botón de compra, pero no se pulsó porque ${current_url} es una cuenta de producción.
+    END
 
 
 ## ---- Finalizar compra ---- ##

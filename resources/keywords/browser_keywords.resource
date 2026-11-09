@@ -2,50 +2,48 @@
 Library     SeleniumLibrary
 Resource    ../../resources/variables/checkout_urls.resource
 Resource    ../../resources/variables/environment.resource
+Resource    ../../resources/locators/checkout_locators.resource
 
 
 *** Keywords ***
 Open Browser To Checkout
-    [Arguments]     ${cart_type}        ${country}
-    [Documentation]    Abre checkout según el environment (prod o sandbox)
-    #Por default environment es sandbox
-    IF    '${country}' == 'sv'
-        # Determinar las URLs basado en el environment
-        ${checkout_url}=    Set Variable If
-        # PRODUCCIÓN
-        ...    '${ENVIRONMENT}' == 'prod' and '${cart_type}' == 'small'              ${CHECKOUT_PROD_SMALL}    
-        ...    '${ENVIRONMENT}' == 'prod' and '${cart_type}' == 'small_mk'           ${CHECKOUT_PROD_SMALL_MK}
-        ...    '${ENVIRONMENT}' == 'prod' and '${cart_type}' == 'big'                ${CHECKOUT_PROD_BIG}
-        ...    '${ENVIRONMENT}' == 'prod' and '${cart_type}' == 'split_siman'        ${CHECKOUT_PROD_SPLIT_SIMAN}
-        ...    '${ENVIRONMENT}' == 'prod' and '${cart_type}' == 'split_siman_mk'     ${CHECKOUT_PROD_SPLIT_SIMAN_MK}
-        # SANDBOX  
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'small'           ${CHECKOUT_SANDBOX_SMALL}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'small_mk'        ${CHECKOUT_SANDBOX_SMALL_MK}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'big'             ${CHECKOUT_SANDBOX_BIG}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_siman'     ${CHECKOUT_SANDBOX_SPLIT_SIMAN}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_siman_mk'  ${CHECKOUT_SANDBOX_SPLIT_SIMAN_MK}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_st_bt_mk'  ${CHECKOUT_SANDBOX_SPLIT_ST_BT_MK}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_st_moto'     ${CHECKOUT_SANDBOX_SPLIT_ST_MOTO}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_bt_moto'     ${CHECKOUT_SANDBOX_SPLIT_BT_MOTO}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_st_bt_moto'  ${CHECKOUT_SANDBOX_SPLIT_ST_BT_MOTO}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_mk_moto'     ${CHECKOUT_SANDBOX_SPLIT_MK_MOTO}
-        ...    '${ENVIRONMENT}' == 'sandbox' and '${cart_type}' == 'split_st_bt_mk_moto'  ${CHECKOUT_SANDBOX_SPLIT_ST_BT_MK_MOTO}
-        # DEFAULT (fallback)
-        ...    ${CHECKOUT_SANDBOX_ANY}
-    ELSE IF    '${country}' == 'gt'
-        ${checkout_url}=    Set Variable    ${CHECKOUT_SANDBOX_GT}
-    ELSE IF    '${country}' == 'cr'
-        ${checkout_url}=    Set Variable    ${CHECKOUT_SANDBOX_CR}
-    ELSE IF    '${country}' == 'ni'
-        ${checkout_url}=    Set Variable    ${CHECKOUT_SANDBOX_NI}
-        
-    END
-    
-    
+    [Arguments]     ${cart_type}        ${country}    ${channel}=online
+    [Documentation]    Abre checkout según environment (prod o sandbox), país (sv/gt/cr/ni) y canal (online/instore).
+    ...    En instore y en gt/cr/ni el carrito es único por país, así que ${cart_type} no se usa.
+    ...    Falla si la combinación no tiene URL definida, en vez de abrir otra por defecto.
+    ${country_key}=    Set Variable    ${{ $country.upper() }}
+    ${env_key}=    Set Variable    ${{ $ENVIRONMENT.upper() }}
+    ${cart_key}=    Set Variable    ${{ $cart_type.upper() }}
 
+    IF    '${channel}' == 'instore' and '${env_key}' == 'SANDBOX'
+        ${checkout_url}=    Get Variable Value    \${CHECKOUT_INSTORE_${country_key}}
+    ELSE IF    '${channel}' != 'online'
+        ${checkout_url}=    Set Variable    ${None}
+    ELSE IF    '${country_key}' == 'SV'
+        ${checkout_url}=    Get Variable Value    \${CHECKOUT_${env_key}_${cart_key}}
+    ELSE IF    '${env_key}' == 'SANDBOX'
+        ${checkout_url}=    Get Variable Value    \${CHECKOUT_SANDBOX_${country_key}}
+    ELSE
+        ${checkout_url}=    Set Variable    ${None}
+    END
+
+    IF    $checkout_url is None
+        Fail    No hay URL de checkout para environment='${ENVIRONMENT}', país='${country}', carrito='${cart_type}', canal='${channel}'.
+    END
 
     Open Browser With Options    ${checkout_url}
-    Sleep    2s
+    # Agregar al carrito falla a veces y deja el carrito vacío, por eso se reintenta antes de fallar
+    Wait Until Keyword Succeeds    3x    3s    Cart Should Be Loaded    ${checkout_url}
+
+Cart Should Be Loaded
+    [Documentation]    Verifica que el carrito tenga productos; si no, vuelve a cargar la URL y falla para reintentar
+    [Arguments]    ${checkout_url}
+    ${loaded}=    Run Keyword And Return Status
+    ...    Wait Until Element Is Visible    ${BTN_GO_PAYMENT}    20s
+    IF    not ${loaded}
+        Go To    ${checkout_url}
+        Fail    El carrito no cargó con productos: ${checkout_url}. Revisa que los SKUs tengan stock en el workspace.
+    END
 
 Open Browser With Options
     [Documentation]    Abre navegador con opciones configuradas (Headless solo en CI)

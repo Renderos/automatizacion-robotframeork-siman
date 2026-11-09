@@ -32,6 +32,8 @@ ${SHOW_ALL_PICKUP_POINTS}     id=pkpmodal-show-list-btn
 ${BTN_GO_TO_FILL_ADDRESS}     css=button[class*='vtex-omnishipping-1-x-btnDelivery']
 ${CHANGE_PICKUP_BUTTON}       id=change-pickup-button
 
+# Selector regional de SV: los <select> no tienen id y los #ship-* quedan ocultos
+${SELECT_REGIONAL}            xpath=//div[contains(@class,'ShippingFormJanisChange-container')]//select
 ${SELECT_DEPARMENT}           id=ship-state
 ${SELECT_CITY}                id=ship-city
 ${SELECT_NEIGHBORHOOD}        id=ship-neighborhood
@@ -73,3 +75,8 @@ ${PAYMENT_TRANS_BANK}                     id=payment-group-custom205PaymentGroup
 
 ${BTN_FINISH_PURCHASE}                    id=payment-data-submit
 ${BTN_CONFIRM_PURCHASE}                   xpath=(//button[@id='payment-data-submit'])[2]
+
+# CSC-9359 - Locators para validación de errores en Shipping (JC-HU029)
+${SHIPPING_ERROR_MSG}                     xpath=//*[contains(text(), 'Este campo es obligatorio.')]
+${SHIPPING_INPUT_STREET_LABEL}            xpath=//label[@for='ship-street']
+${SHIPPING_INPUT_RECEIVERNAME_LABEL}      xpath=//label[@for='ship-receiverName']
