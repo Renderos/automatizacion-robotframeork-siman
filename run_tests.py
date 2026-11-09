@@ -1,5 +1,6 @@
 import os
 import sys  # ✅ Este import debe estar al inicio
+import argparse
 import yaml
 import json
 import datetime
@@ -40,15 +41,24 @@ def load_env_config(env):
     with open(config_path, "r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
-def create_execution_directory(env_name):
-    """Crea el directorio de ejecución actual con timestamp"""
+def create_execution_directory(env_name, suite_label):
+    """Crea un directorio único por ejecución: results/executions/AAAA/MM_mes/AAAAMMDD_HHMMSS_env_suite.
+    Si ya existe (dos ejecuciones en el mismo segundo) agrega un sufijo _2, _3, ... para no sobrescribir."""
     now = datetime.datetime.now()
     year = now.strftime("%Y")
     month = now.strftime("%m_%B").lower()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    
-    execution_dir = f"results/executions/{year}/{month}/{timestamp}_{env_name}"
-    os.makedirs(execution_dir, exist_ok=True)
+
+    base_dir = f"results/executions/{year}/{month}/{timestamp}_{env_name}_{suite_label}"
+    execution_dir = base_dir
+    suffix = 2
+    while True:
+        try:
+            os.makedirs(execution_dir, exist_ok=False)
+            break
+        except FileExistsError:
+            execution_dir = f"{base_dir}_{suffix}"
+            suffix += 1
     os.makedirs(f"{execution_dir}/screenshots", exist_ok=True)
     
     # Siempre crear un archivo latest.txt con la ruta
@@ -278,13 +288,37 @@ def generate_dashboard():
         print(f"⚠️ Error generando dashboard: {e}")
         return False
 
-def main():
-    # ✅ Usar sys.argv directamente, sin redefinir sys
-    if len(sys.argv) < 2:
-        print("⚠️  Debes especificar un entorno (por ejemplo: python run_tests.py sandbox)")
-        sys.exit(1)
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Ejecuta una suite de Robot Framework y guarda los resultados en una carpeta con fecha y hora.",
+        epilog="Ejemplos:\n"
+               "  python run_tests.py sandbox\n"
+               "  python run_tests.py sandbox tests/demo -v DEMO_SPEED:0.3s\n"
+               "  python run_tests.py sandbox tests/demo -i rapido",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("env", help="Entorno: sandbox o prod (usa configs/env_<env>.yaml)")
+    parser.add_argument("suite", nargs="?", default=os.path.join("tests", "regression"),
+                        help="Carpeta o archivo .robot a ejecutar (por defecto: tests/regression)")
+    parser.add_argument("-v", "--variable", action="append", default=[],
+                        help="Variable extra para Robot, formato NOMBRE:VALOR (repetible)")
+    parser.add_argument("-i", "--include", action="append", default=[], help="Ejecutar solo tests con este tag (repetible)")
+    parser.add_argument("-e", "--exclude", action="append", default=[], help="Excluir tests con este tag (repetible)")
+    parser.add_argument("-t", "--test", action="append", default=[], help="Ejecutar solo tests con este nombre (repetible, admite *)")
+    return parser.parse_args(argv)
 
-    env = sys.argv[1]
+def suite_label_from_path(suite_path):
+    """Nombre corto de la suite para la carpeta: tests/demo/demo_en_vivo.robot -> demo_en_vivo"""
+    name = os.path.splitext(os.path.basename(os.path.normpath(suite_path)))[0]
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in name) or "suite"
+
+def main():
+    args = parse_args()
+    env = args.env
+    test_dir = args.suite
+    if not os.path.exists(test_dir):
+        print(f"❌ No existe la suite: {test_dir}")
+        sys.exit(1)
     
     try:
         config = load_env_config(env)
@@ -296,10 +330,7 @@ def main():
     ensure_results_structure()
     
     # Crear directorio de ejecución específico
-    execution_dir = create_execution_directory(env)
-    
-    # Define las rutas base
-    test_dir = os.path.join("tests", "regression")  # Ajusta según sea necesario
+    execution_dir = create_execution_directory(env, suite_label_from_path(test_dir))
     
     # Variables que se enviarán al Robot
     variables = [
@@ -319,8 +350,12 @@ def main():
         if var in config:
             variables.append(f"{var.upper()}:{config[var]}")
 
+    # Variables pasadas por línea de comandos (van al final para que tengan prioridad)
+    variables.extend(args.variable)
+
     print(f"🚀 Ejecutando pruebas para el entorno: {env}")
     print(f"🌐 URL base: {config['base_url']}")
+    print(f"🧪 Suite: {test_dir}")
     print(f"📁 Directorio de ejecución: {execution_dir}")
 
     # Crear listener personalizado para reportar keywords fallidas
@@ -339,6 +374,9 @@ def main():
         xunit=os.path.join(execution_dir, 'xunit.xml'),
         name=f"Siman Automation - {env}",
         timestampoutputs=False,
+        include=args.include,
+        exclude=args.exclude,
+        test=args.test,
     )
 
     # Generar reportes adicionales si la ejecución produjo resultados

@@ -8,9 +8,10 @@ Documentation       Suite para demostración en vivo del checkout de siman.com (
 ...
 ...                 Ejecutar SOLO en sandbox: en producción las compras terminan en SKIP.
 ...
-...                 robot -d results/demo tests/demo/demo_en_vivo.robot
-...                 robot -d results/demo --variable DEMO_SPEED:0.3s tests/demo/demo_en_vivo.robot
-...                 robot -d results/demo --include rapido tests/demo/demo_en_vivo.robot
+...                 Cada corrida queda en results/executions/AAAA/MM_mes/AAAAMMDD_HHMMSS_sandbox_demo/:
+...                 python run_tests.py sandbox tests/demo
+...                 python run_tests.py sandbox tests/demo -v DEMO_SPEED:0.3s
+...                 python run_tests.py sandbox tests/demo -i rapido
 
 Resource            ../../resources/keywords/browser_keywords.resource
 Resource            ../../resources/keywords/general_keywords.resource

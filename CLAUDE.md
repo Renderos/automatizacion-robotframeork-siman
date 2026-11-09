@@ -23,6 +23,10 @@ python run_and_report.py prod
 python run_tests.py sandbox
 python run_tests.py prod
 
+# Any suite through the runner (default suite: tests/regression); accepts -v NAME:VALUE, -i/-e TAG, -t NAME
+python run_tests.py sandbox tests/demo -v DEMO_SPEED:0.3s
+python run_and_report.py sandbox tests/demo
+
 # Single suite directly
 robot -d results/sandbox tests/regression/flujos_checkout_guest_user.robot
 
@@ -94,6 +98,7 @@ Each test: open browser → `Open Browser To Checkout` (cart type + lowercase co
 - `Finish Purchase verify` performs a full VTEX admin login to extract the order number; `no_verify` only waits for the VTEX login input to appear.
 - Tests use `CSC-XXXX` tags (e.g., `[Tags] CSC-8202`) so `run_tests.py` can generate XRay Server payloads keyed by those IDs.
 - `run_and_report.py` vs `run_tests.py`: both run tests, but only `run_and_report.py` generates the Allure report and XRay payload.
+- **Per-run results folder:** `run_tests.py` writes each run to `results/executions/YYYY/MM_month/YYYYMMDD_HHMMSS_<env>_<suite>/` (adds `_2`, `_3`… if two runs start in the same second) and records the path in `results/executions/latest.txt`. `results/output.xml`, `log.html`, `report.html`, `DETAILED_REPORT.html` and `exports/` are "latest" copies that get overwritten; `run_and_report.py` also copies `DETAILED_REPORT.html` and `exports/` into the run folder. Running `robot -d <dir>` directly bypasses this and overwrites `<dir>`.
 
 ### CI (GitHub Actions)
 
