@@ -56,6 +56,7 @@ tests/
   regression/         # Checkout scenario matrix (cart type × user type)
   new_user_test/      # Template-based new user flows
   api_otp/            # OTP API retrieval validation
+  demo/               # 10-case suite for live demos (sandbox only; not run by run_tests.py)
 
 configs/              # env_prod.yaml / env_sandbox.yaml
 results/              # Auto-generated: executions/, dashboards/, allure-results/, xray/
